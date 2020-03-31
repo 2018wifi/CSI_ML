@@ -59,8 +59,8 @@ def parse_pcap(pcap_file, npy_file):        # 将源pcap文件转为numpy矩阵�
     np.save(npy_file, matrix)
 
 if __name__ == '__main__':
-    for i in range(1, 16):
+    for i in range(1, 51):
         print("processing pcap: ", i)
         parse_pcap('data_raw/clap' + str(i) + '.pcap', 'data/clap' + str(i) + '.npy')
-        parse_pcap('data_raw/gesture' + str(i) + '.pcap', 'data/gesture' + str(i) + '.npy')
-        parse_pcap('data_raw/result' + str(i) + '.pcap', 'data/result' + str(i) + '.npy')
+        parse_pcap('data_raw/circle' + str(i) + '.pcap', 'data/circle' + str(i) + '.npy')
+        parse_pcap('data_raw/static' + str(i) + '.pcap', 'data/static' + str(i) + '.npy')
