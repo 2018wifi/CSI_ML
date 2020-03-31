@@ -11,7 +11,7 @@ for i in range(1000000):
 model = keras.Sequential([
     keras.layers.Dense(2),
     keras.layers.Dense(128, activation='relu'),
-    keras.layers.Dense(128, activation='relu'),1
+    keras.layers.Dense(128, activation='relu'),
     keras.layers.Dense(128, activation='relu'),
     keras.layers.Dense(128, activation='relu'),
     keras.layers.Dense(128, activation='relu'),
