@@ -23,7 +23,7 @@ def read_header(data):  # 提取头信息
     header["spatial_stream"] = [int(coreSpatialBytes & x != 0) for x in range(3, 6)]
 
     header["channel_spec"] = data[14:16]
-    header["chip"] = data[18:20]
+    header["chip"] = data[16:18]
 
     return header
 
@@ -45,22 +45,27 @@ def parse_pcap(pcap_file, npy_file):        # 将源pcap文件转为numpy矩阵�
     pcap = dpkt.pcap.Reader(f)
 
     matrix_list = []
-    for ts, buf in pcap:
-        if len(buf) != 316:
+    for _, buf in pcap:
+        eth = dpkt.ethernet.Ethernet(buf)
+        ip = eth.data
+        transf_data = ip.data
+        payload = transf_data.data      # 逐层解包
+
+        if len(payload) != 274:         # 大小不对时舍弃这个包
             continue
-        data = parse_udp(buf[42:])
+
+        data = parse_udp(payload)
         csi = read_csi(data)
         matrix_list.append(csi)
-
     matrix = np.array(matrix_list)
-    f.close()
-    with open(npy_file, 'wb+') as _:
+    with open(npy_file, 'wb'):
         pass
+    f.close()
     np.save(npy_file, matrix)
 
 if __name__ == '__main__':
-    for i in range(1, 51):
+    for i in range(1, 16):
         print("processing pcap: ", i)
-        parse_pcap('data_raw/clap' + str(i) + '.pcap', 'data/clap' + str(i) + '.npy')
         parse_pcap('data_raw/circle' + str(i) + '.pcap', 'data/circle' + str(i) + '.npy')
+        parse_pcap('data_raw/clap' + str(i) + '.pcap', 'data/clap' + str(i) + '.npy')
         parse_pcap('data_raw/static' + str(i) + '.pcap', 'data/static' + str(i) + '.npy')

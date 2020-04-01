@@ -25,7 +25,7 @@ for i in range(1, 51):
             temp_clap[j][k] = abs(temp_clap[j][k])
             temp_gesture[j][k] = abs(temp_gesture[j][k])
             temp_result[j][k] = abs(temp_result[j][k])
-            if 29 <= abs(k - 32) <= 32 or k == 32:
+            if k == 0 or k == 29 or k == 30 or k == 31 or k == 32 or k == 33 or k == 34 or k == 35:
                 temp_clap[j][k] = 0
                 temp_gesture[j][k] = 0
                 temp_result[j][k] = 0
@@ -35,12 +35,25 @@ for i in range(1, 51):
     temp_gesture = temp_gesture.astype('float64')
     temp_result = temp_result.astype('float64')
     train_data[i - 1] = temp_clap[0:PCAP_SIZE, :]
-    train_data[2 * i - 1] = temp_gesture[0:PCAP_SIZE, :]
-    train_data[3 * i - 1] = temp_result[0:PCAP_SIZE, :]
+    train_data[50 + i - 1] = temp_gesture[0:PCAP_SIZE, :]
+    train_data[100 + i - 1] = temp_result[0:PCAP_SIZE, :]
     train_result[i - 1] = 0
-    train_result[2 * i - 1] = 1
-    train_result[3 * i - 1] = 2
+    train_result[50 + i - 1] = 1
+    train_result[100 + i - 1] = 2
 
+# 训练数据归一化
+cnt = 0
+for i in range(TRAIN_SIZE):
+    for j in range(PCAP_SIZE):
+        #print(train_data[i][j])
+        CSI_max = train_data[i][j].max()
+        if CSI_max == 0:
+            cnt = cnt + 1
+        for k in range(NFFT):
+            # if train_data[i][j][k] == 0:
+            #     train_data[i][j][k] = 1
+            train_data[i][j][k] = train_data[i][j][k]/CSI_max
+print(str(cnt))
 
 model = keras.Sequential([
     keras.layers.Flatten(input_shape=(PCAP_SIZE, NFFT)),
