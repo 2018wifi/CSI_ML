@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 
+fake_data = np.zeros((1000000, 2))
 train_data = np.random.randint(1, 9, size=(1000000, 2)).astype('float64')
 train_answer = np.zeros(1000000)
 for i in range(1000000):
@@ -23,4 +24,4 @@ model = keras.Sequential([
 model.compile(optimizer='adam',
               loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
               metrics=['accuracy'])
-model.fit(train_data, train_answer)
+model.fit(fake_data, train_answer)
