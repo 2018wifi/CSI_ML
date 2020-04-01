@@ -21,7 +21,6 @@ for i in range(1, 51):
     # CSI求模&&毛刺处理
     for j in range(PCAP_SIZE):
         for k in range(NFFT):
-            # print(str(i) + ',' + str(j) + ',' + str(k))
             temp_clap[j][k] = abs(temp_clap[j][k])
             temp_gesture[j][k] = abs(temp_gesture[j][k])
             temp_result[j][k] = abs(temp_result[j][k])
