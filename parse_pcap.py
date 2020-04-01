@@ -58,6 +58,8 @@ def parse_pcap(pcap_file, npy_file):        # 将源pcap文件转为numpy矩阵�
         csi = read_csi(data)
         matrix_list.append(csi)
     matrix = np.array(matrix_list)
+    with open(npy_file, 'wb'):
+        pass
     f.close()
     np.save(npy_file, matrix)
 
