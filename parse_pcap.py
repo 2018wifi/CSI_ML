@@ -95,6 +95,7 @@ def parse_draw(ts_matrix):
     ax = plt.gca()
     ax.xaxis.set_major_locator(x_major_locator)
     bn = plt.bar(x, data_count, width)  # 初始状态的图
+    ax.set_title(pcap_name)
     for b in bn:
         ax.text(b.get_x() + b.get_width() / 2, b.get_height(),b.get_height(), ha = 'center',va='bottom')
     plt.show()  # 关闭画图的窗口
