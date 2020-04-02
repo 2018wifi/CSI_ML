@@ -2,9 +2,12 @@ import dpkt
 import time
 import struct
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import MultipleLocator
 
 BW = 20
 NFFT = int(BW * 3.2)
+pcap_name = 'clap1'
 
 def parse_udp(buffer):      # 解析udp包的二进制流
     nbyte = int(len(buffer))        # 字节数
@@ -62,6 +65,7 @@ def parse_pcap(pcap_file):        # 将源pcap文件转为numpy矩阵的二进�
         ts_list.append(time.strftime("%H:%M:%S",time.localtime(ts)))
     matrix = np.array(matrix_list)
     ts_matrix = np.array(ts_list)
+    print(ts_matrix)
     f.close()
 
     # 写入npy文件
@@ -71,10 +75,34 @@ def parse_pcap(pcap_file):        # 将源pcap文件转为numpy矩阵的二进�
         pass
     np.save("data/" + pcap_file + ".npy", matrix)
     np.save("data_ts/" + pcap_file + ".npy", ts_matrix)
+    parse_draw(ts_matrix)
+
+def parse_draw(ts_matrix):
+    ts_unique = np.unique(ts_matrix)
+    xnum = len(ts_unique)
+    no = [i for i in range(xnum + 1)]
+    x = [(str(no[i]) + '-' + str(no[i + 1])) for i in range(xnum)]
+    data_count = []
+    data = sorted(ts_matrix)
+    for i in ts_unique:
+        data_count.append(data.count(i))
+    plt.ylabel('number of packet')
+    plt.xlabel('time')
+    # plt.ylim(0, max(data_count) + 1)
+    # plt.xlim(0, max(x) + 1)
+    width = 0.6
+    x_major_locator = MultipleLocator(1)
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(x_major_locator)
+    bn = plt.bar(x, data_count, width)  # 初始状态的图
+    for b in bn:
+        ax.text(b.get_x() + b.get_width() / 2, b.get_height(),b.get_height(), ha = 'center',va='bottom')
+    plt.show()  # 关闭画图的窗口
 
 if __name__ == '__main__':
-    for i in range(1, 51):
-        print("processing pcap: ", i)
-        parse_pcap('static' + str(i))
-        parse_pcap('circle' + str(i))
-        parse_pcap('clap' + str(i))
+    # for i in range(1, 51):
+    #     print("processing pcap: ", i)
+    #     parse_pcap('static' + str(i))
+    #     parse_pcap('circle' + str(i))
+    #     parse_pcap('clap' + str(i))
+    parse_pcap(pcap_name)
