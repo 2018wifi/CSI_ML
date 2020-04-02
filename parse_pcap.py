@@ -1,4 +1,5 @@
 import dpkt
+import time
 import struct
 import numpy as np
 
@@ -40,12 +41,13 @@ def read_csi(data):     # 提取CSI信息，并转换成矩阵
 
     return csi
 
-def parse_pcap(pcap_file, npy_file):        # 将源pcap文件转为numpy矩阵的二进制文件
-    f = open(pcap_file, 'rb')
+def parse_pcap(pcap_file):        # 将源pcap文件转为numpy矩阵的二进制文件
+    f = open("data_raw/" + pcap_file + ".pcap", 'rb')
     pcap = dpkt.pcap.Reader(f)
 
     matrix_list = []
-    for _, buf in pcap:
+    ts_list = []
+    for ts, buf in pcap:
         eth = dpkt.ethernet.Ethernet(buf)
         ip = eth.data
         transf_data = ip.data
@@ -57,15 +59,22 @@ def parse_pcap(pcap_file, npy_file):        # 将源pcap文件转为numpy矩阵�
         data = parse_udp(payload)
         csi = read_csi(data)
         matrix_list.append(csi)
+        ts_list.append(time.strftime("%H:%M:%S",time.localtime(ts)))
     matrix = np.array(matrix_list)
-    with open(npy_file, 'wb'):
-        pass
+    ts_matrix = np.array(ts_list)
     f.close()
-    np.save(npy_file, matrix)
+
+    # 写入npy文件
+    with open("data/" + pcap_file + ".npy", 'wb'):
+        pass
+    with open("data_ts/" + pcap_file + ".npy", 'wb'):
+        pass
+    np.save("data/" + pcap_file + ".npy", matrix)
+    np.save("data_ts/" + pcap_file + ".npy", ts_matrix)
 
 if __name__ == '__main__':
-    for i in range(1, 16):
+    for i in range(1, 51):
         print("processing pcap: ", i)
-        parse_pcap('data_raw/circle' + str(i) + '.pcap', 'data/circle' + str(i) + '.npy')
-        parse_pcap('data_raw/clap' + str(i) + '.pcap', 'data/clap' + str(i) + '.npy')
-        parse_pcap('data_raw/static' + str(i) + '.pcap', 'data/static' + str(i) + '.npy')
+        parse_pcap('static' + str(i))
+        parse_pcap('circle' + str(i))
+        parse_pcap('clap' + str(i))
