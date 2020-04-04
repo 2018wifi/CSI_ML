@@ -59,6 +59,18 @@ model = keras.Sequential([
     keras.layers.Dense(128, activation='relu'),
     keras.layers.Dense(128, activation='relu'),
     keras.layers.Dense(128, activation='relu'),
+    keras.layers.Dense(128, activation='relu'),
+    keras.layers.Dense(128, activation='relu'),
+    keras.layers.Dense(128, activation='relu'),
+    keras.layers.Dense(128, activation='relu'),
+    keras.layers.Dense(128, activation='relu'),
+    keras.layers.Dense(128, activation='relu'),
+    keras.layers.Dense(128, activation='relu'),
+    keras.layers.Dense(128, activation='relu'),
+    keras.layers.Dense(128, activation='relu'),
+    keras.layers.Dense(128, activation='relu'),
+    keras.layers.Dense(128, activation='relu'),
+    keras.layers.Dense(128, activation='relu'),
     keras.layers.Dense(GESTURE_NUM)
 ])
 model.compile(optimizer='adam',
