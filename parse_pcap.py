@@ -7,7 +7,7 @@ from matplotlib.pyplot import MultipleLocator
 
 BW = 20
 NFFT = int(BW * 3.2)
-pcap_name = 'clap1'
+pcap_name = 'rate45'
 
 def parse_udp(buffer):      # 解析udp包的二进制流
     nbyte = int(len(buffer))        # 字节数
@@ -50,19 +50,39 @@ def parse_pcap(pcap_file):        # 将源pcap文件转为numpy矩阵的二进�
 
     matrix_list = []
     ts_list = []
+    # test
+    test = 0
+    s = 0
+    # test
     for ts, buf in pcap:
+        #
+        test = test + 1
+        #
         eth = dpkt.ethernet.Ethernet(buf)
         ip = eth.data
         transf_data = ip.data
         payload = transf_data.data      # 逐层解包
 
         if len(payload) != 274:         # 大小不对时舍弃这个包
+            print('*')
             continue
+
+        if test == 1:
+            ts_s = ts
 
         data = parse_udp(payload)
         csi = read_csi(data)
         matrix_list.append(csi)
-        ts_list.append(time.strftime("%H:%M:%S",time.localtime(ts)))
+        print(ts-ts_s)
+        # if ts - ts_s > s + 1:
+        #     s = s + 1
+
+        # ts_list.append(time.strftime("%H:%M:%S",time.localtime(ts)))
+        ts_list.append(int(time.strftime("%S",time.localtime(ts - ts_s))))
+        #
+        # if test == 20:
+        #     break
+        #
     matrix = np.array(matrix_list)
     ts_matrix = np.array(ts_list)
     print(ts_matrix)
@@ -78,27 +98,32 @@ def parse_pcap(pcap_file):        # 将源pcap文件转为numpy矩阵的二进�
     parse_draw(ts_matrix)
 
 def parse_draw(ts_matrix):
-    ts_unique = np.unique(ts_matrix)
-    xnum = len(ts_unique)
-    no = [i for i in range(xnum + 1)]
-    x = [(str(no[i]) + '-' + str(no[i + 1])) for i in range(xnum)]
+    # ts_unique = np.unique(ts_matrix)
+    # xnum = len(ts_unique)
+    # no = [i for i in range(xnum + 1)]
+    # x = [(str(no[i]) + '-' + str(no[i + 1])) for i in range(xnum)]
+    xnum = ts_matrix[len(ts_matrix) - 1]
+    x = [i + 1 for i in range(xnum)]
     data_count = []
     data = sorted(ts_matrix)
-    for i in ts_unique:
+    for i in range(xnum):
+        print(data.count(i))
         data_count.append(data.count(i))
     plt.ylabel('number of packet')
     plt.xlabel('time')
     # plt.ylim(0, max(data_count) + 1)
     # plt.xlim(0, max(x) + 1)
     width = 0.6
-    x_major_locator = MultipleLocator(1)
+    x_major_locator = MultipleLocator(2)
     ax = plt.gca()
     ax.xaxis.set_major_locator(x_major_locator)
     bn = plt.bar(x, data_count, width)  # 初始状态的图
+    plt.tick_params(axis='x', labelsize=5)
+    # plt.xticks(rotation=-45)
     ax.set_title(pcap_name)
     for b in bn:
-        ax.text(b.get_x() + b.get_width() / 2, b.get_height(),b.get_height(), ha = 'center',va='bottom')
-    plt.show()  # 关闭画图的窗口
+        ax.text(b.get_x() + b.get_width() / 2, b.get_height(),b.get_height(), fontsize=7,ha = 'center',va='bottom')
+    plt.show()
 
 if __name__ == '__main__':
     # for i in range(1, 51):
