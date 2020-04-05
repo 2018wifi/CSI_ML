@@ -7,7 +7,7 @@ from matplotlib.pyplot import MultipleLocator
 
 BW = 20
 NFFT = int(BW * 3.2)
-pcap_name = 'rate45'
+pcap_name = 'test3-3'
 
 def parse_udp(buffer):      # 解析udp包的二进制流
     nbyte = int(len(buffer))        # 字节数
@@ -103,10 +103,10 @@ def parse_draw(ts_matrix):
     # no = [i for i in range(xnum + 1)]
     # x = [(str(no[i]) + '-' + str(no[i + 1])) for i in range(xnum)]
     xnum = ts_matrix[len(ts_matrix) - 1]
-    x = [i + 1 for i in range(xnum)]
+    x = [i + 1 for i in range(xnum + 1)]
     data_count = []
     data = sorted(ts_matrix)
-    for i in range(xnum):
+    for i in range(xnum + 1):
         print(data.count(i))
         data_count.append(data.count(i))
     plt.ylabel('number of packet')
