@@ -7,7 +7,9 @@ from matplotlib.pyplot import MultipleLocator
 
 BW = 20
 NFFT = int(BW * 3.2)
-pcap_name = 'test3-3'
+pcap_name = 'test1-1'
+t_c = 3
+rate = 45  # 发包速率，单位：包/秒
 
 def parse_udp(buffer):      # 解析udp包的二进制流
     nbyte = int(len(buffer))        # 字节数
@@ -50,14 +52,10 @@ def parse_pcap(pcap_file):        # 将源pcap文件转为numpy矩阵的二进�
 
     matrix_list = []
     ts_list = []
-    # test
-    test = 0
-    s = 0
-    # test
+    t_d = []
+    no = 0
+
     for ts, buf in pcap:
-        #
-        test = test + 1
-        #
         eth = dpkt.ethernet.Ethernet(buf)
         ip = eth.data
         transf_data = ip.data
@@ -67,25 +65,48 @@ def parse_pcap(pcap_file):        # 将源pcap文件转为numpy矩阵的二进�
             print('*')
             continue
 
-        if test == 1:
+        if no == 0:
             ts_s = ts
 
         data = parse_udp(payload)
         csi = read_csi(data)
-        matrix_list.append(csi)
-        print(ts-ts_s)
-        # if ts - ts_s > s + 1:
-        #     s = s + 1
+
 
         # ts_list.append(time.strftime("%H:%M:%S",time.localtime(ts)))
-        ts_list.append(int(time.strftime("%S",time.localtime(ts - ts_s))))
-        #
-        # if test == 20:
-        #     break
-        #
+        tt = int(time.strftime("%S",time.localtime(ts - ts_s)))
+        if tt < t_c:
+            matrix_list.append(csi)
+            ts_list.append(ts - ts_s)
+            # ts_list.append(tt)
+            if no > 0:
+                t_d.append(-ts_list[no] + ts_list[no - 1])      #负差值，方便后面从大到小排序
+        no = no + 1
+
+    ts_lack = t_c * rate - len(ts_list)
+
+    # ts_matrix = np.array(ts_list)
+    td_matrix = np.array(t_d)
+    td_sort = td_matrix.argsort()
+    # print(ts_matrix)
+
+    for i in range(ts_lack):
+        shift = 0
+        ma_i = [0 for j in range(NFFT)]
+
+        for j in range(i):
+            if td_sort[i] > td_sort[j]:
+                shift = shift + 1
+
+        index = td_sort[i] + shift
+
+        for j in range(NFFT):                       # 取索引位前后的中值作为插值
+            ma_i[j] = (abs(matrix_list[index][j]) + abs(matrix_list[index + 1][j])) / 2
+
+        matrix_list.insert(index + 1, ma_i)
+        # ts_matrix = np.array(ts_list)
+
     matrix = np.array(matrix_list)
     ts_matrix = np.array(ts_list)
-    print(ts_matrix)
     f.close()
 
     # 写入npy文件
@@ -95,7 +116,8 @@ def parse_pcap(pcap_file):        # 将源pcap文件转为numpy矩阵的二进�
         pass
     np.save("data/" + pcap_file + ".npy", matrix)
     np.save("data_ts/" + pcap_file + ".npy", ts_matrix)
-    parse_draw(ts_matrix)
+    # 画图显示每秒包数
+    # parse_draw(ts_matrix)
 
 def parse_draw(ts_matrix):
     # ts_unique = np.unique(ts_matrix)
