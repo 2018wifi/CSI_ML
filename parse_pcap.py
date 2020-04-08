@@ -140,7 +140,7 @@ class Pcap:
 
 if __name__ == '__main__':
     for i in range(1, 71):
-        pcap_name = "T1/T1_" + str(i)
+        pcap_name = "T3/T3_" + str(i)
         pcap = Pcap(pcap_name)
         pcap.parse()
         pcap.save()
