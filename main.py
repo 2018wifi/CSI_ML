@@ -65,3 +65,4 @@ model.compile(optimizer='adam',
 model.fit(train_data, train_result, validation_split=0.1, epochs=10)
 print(model(train_data[0]))
 
+
