@@ -1,70 +1,22 @@
-import numpy as np
-
-BW = 20  # 带宽
-NFFT = int(BW * 3.2)
-GESTURE_NUM = 3  # 手势数
-TRAIN_SIZE = 210  # 训练集大小
-PCAP_SIZE = 150  # 每个pcap包含的CSI数组个数
-
-train_data = np.zeros((TRAIN_SIZE, PCAP_SIZE, NFFT))
-train_result = np.zeros((TRAIN_SIZE, GESTURE_NUM))
-
-for i in range(1, 70 + 1):
-    # 读取npy文件
-    temp_T1 = np.load('data/T1/T1_' + str(i) + '.npy')
-    temp_T2 = np.load('data/T2/T2_' + str(i) + '.npy')
-    temp_T3 = np.load('data/T3/T3_' + str(i) + '.npy')
-
-    # CSI求模&&毛刺处理
-    for j in range(PCAP_SIZE):
-        for k in range(NFFT):
-            temp_T1[j][k] = abs(temp_T1[j][k])
-            temp_T2[j][k] = abs(temp_T2[j][k])
-            temp_T3[j][k] = abs(temp_T3[j][k])
-            if k == 0 or k == 29 or k == 30 or k == 31 or k == 32 or k == 33 or k == 34 or k == 35:
-                temp_T1[j][k] = 0
-                temp_T2[j][k] = 0
-                temp_T3[j][k] = 0
-
-    # 加入学习队列
-    # temp_T1.dtype = float
-    # temp_T2.dtype = float
-    # temp_T3.dtype = float
-    train_data[i - 1] = temp_T1[0:PCAP_SIZE, :]
-    train_data[70 + i - 1] = temp_T2[0:PCAP_SIZE, :]
-    train_data[140 + i - 1] = temp_T3[0:PCAP_SIZE, :]
-    train_result[i - 1] = [1, 0, 0]
-    train_result[70 + i - 1] = [0, 1, 0]
-    train_result[140 + i - 1] = [0, 0, 1]
-
-# 训练数据归一化
-cnt = 0
-for i in range(TRAIN_SIZE):
-    for j in range(PCAP_SIZE):
-        #print(train_data[i][j])
-        CSI_max = train_data[i][j].max()
-        if CSI_max == 0:
-            cnt = cnt + 1
-        for k in range(NFFT):
-            # if train_data[i][j][k] == 0:
-            #     train_data[i][j][k] = 1
-            train_data[i][j][k] = train_data[i][j][k]/CSI_max
-
-
-
-
-
-
 import torch
+import torch.nn.functional as functional
+import numpy as np
+import random
 
 # N is batch size; INPUT_SIZE is input dimension;
 # HIDDEN_WIDTH is the width of hidden dimension; OUTPUT_SIZE is output dimension;
 # VAL_SIZE is validation size.
-N = 210
-INPUT_SIZE = 64*150
+BW = 20  # 带宽
+NFFT = int(BW * 3.2)
+PCAP_SIZE = 150  # 每个pcap包含的CSI数组个数
+T_NUM = 3
+T_SIZE = 70
+
+
+INPUT_SIZE = PCAP_SIZE * NFFT
 HIDDEN_WIDTH = 50
-OUTPUT_SIZE = 3
-VAL_SIZE = 10
+VAL_SIZE = 20
+OUTPUT_SIZE = T_NUM
 epochs = 500
 
 
@@ -78,26 +30,57 @@ class Net(torch.nn.Module):
 
     def forward(self, x):
         # use dropout() to prevent over learning
-        x = self.dropout(torch.nn.functional.relu(self.linear1(x)))
-        x = self.dropout(torch.nn.functional.relu(self.linear2(x)))
+        x = self.dropout(functional.relu(self.linear1(x)))
+        x = self.dropout(functional.relu(self.linear2(x)))
         # the output dimension shouldn't use dropout()
-        y_pred = torch.nn.functional.softmax(self.linear3(x), dim=1)
+        y_pred = functional.softmax(self.linear3(x), dim=1)
         return y_pred
 
 
+x = torch.zeros((T_NUM * T_SIZE, INPUT_SIZE))
+y = torch.zeros((T_NUM * T_SIZE, OUTPUT_SIZE))
+cnt = 0
+for i in range(T_NUM):
+    for j in range(T_SIZE):
+        temp_y = torch.zeros(T_NUM)
+        temp_y[i] = 1
+        # read .npy file
+        file = 'data/T' + str(i+1) + '/T' + str(i+1) + '_' + str(j+1) + '.npy'
+        temp_x = np.load(file)
+        for k in range(PCAP_SIZE):
+            temp_x[k] = abs(temp_x[k])
+        temp_x = torch.from_numpy(temp_x.astype('float64'))[0:PCAP_SIZE]
+        # clean and normalize data
+        for k in [0, 29, 30, 31, 32, 33, 34, 35]:
+            temp_x[:, k] = 0
+        for k in range(temp_x.shape[0]):
+            CSI_max = temp_x[k].max()
+            for p in range(temp_x.shape[1]):
+                temp_x[k][p] = temp_x[k][p] / CSI_max
+        # flatten the 3D data
+        temp_x = temp_x.view((-1, ))
+        # concatenates to x and y
+        x[cnt] = temp_x
+        y[cnt] = temp_y
+        cnt += 1
+        # print(i, j)
 
-# Create random Tensors to hold inputs and outputs
-x = torch.from_numpy(train_data[0:59])
-y = torch.from_numpy(train_result[0:59])
-x = x.view(59, -1)
-
-test_x = torch.from_numpy(train_data[60:69])
-test_y = torch.from_numpy(train_result[60:69])
-test_x = test_x.view(10, -1)
+# Extract test batch
+test_x = torch.zeros((VAL_SIZE, INPUT_SIZE))
+test_y = torch.zeros((VAL_SIZE, OUTPUT_SIZE))
+for i in range(VAL_SIZE):
+    n = random.randint(0, x.shape[0] - 1)
+    # print(n)
+    test_x[i] = x[n]
+    test_y[i] = y[n]
+    x = torch.cat((x[:n], x[n+1:]))
+    y = torch.cat((y[:n], y[n+1:]))
+x.requires_grad = True
+y.requires_grad = True
 # Construct our model by instantiating the class defined above
 model = Net(INPUT_SIZE, HIDDEN_WIDTH, OUTPUT_SIZE)
 
-# Construct our loss function and an Optimizer. The call to model.parameters()
+# Construct a loss function and an Optimizer. The call to model.parameters()
 # in the SGD constructor will contain the learnable parameters of the two
 # nn.Linear modules which are members of the model.
 criterion = torch.nn.MSELoss(reduction='sum')
@@ -109,12 +92,6 @@ for t in range(epochs):
     loss = criterion(y_pred, y)
     if t % 100 == 99:
         print(t + 1, '针对训练集的损失', loss.item())
-        with torch.no_grad():
-            y_pred = model(test_x)
-            test_loss = criterion(y_pred, test_y)
-            total = torch.tensor(VAL_SIZE, dtype=float)
-            bingo = (y_pred == test_y.squeeze(1)).sum()
-            print('针对测试集的损失', test_loss.item(), '准确率', (bingo/total).item())
     # Zero gradients, perform a backward pass, and update the weights.
     optimizer.zero_grad()
     loss.backward()
