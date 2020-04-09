@@ -7,7 +7,7 @@ from matplotlib.pyplot import MultipleLocator
 
 BW = 20
 NFFT = int(BW * 3.2)
-t_c = 4
+t_c = 3
 rate = 50  # 发包速率，单位：包/秒
 
 class Pcap:
@@ -140,9 +140,9 @@ class Pcap:
 
 if __name__ == '__main__':
     for i in range(1, 71):
-        pcap_name = "T3/T3_" + str(i)
+        pcap_name = "T5/T5_" + str(i)
         pcap = Pcap(pcap_name)
         pcap.parse()
         pcap.save()
-        pcap.draw()
+        # pcap.draw()
 
