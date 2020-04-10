@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as functional
 import numpy as np
 import random
@@ -9,35 +10,49 @@ import random
 BW = 20  # 带宽
 NFFT = int(BW * 3.2)
 PCAP_SIZE = 150  # 每个pcap包含的CSI数组个数
-T_NUM = 3
-T_SIZE = 70
+T_NUM = 2
+T_SIZE = 20
 
 
 INPUT_SIZE = PCAP_SIZE * NFFT
 HIDDEN_WIDTH = 50
-VAL_SIZE = 20
+VAL_SIZE = 2
 OUTPUT_SIZE = T_NUM
 epochs = 500
 
 
 class Net(torch.nn.Module):
-    def __init__(self, INPUT_SIZE, HIDDEN_WIDTH, OUTPUT_SIZE):
+    def __init__(self, HEIGH, WIDTH, OUTPUT_SIZE):
         super(Net, self).__init__()
-        self.linear1 = torch.nn.Linear(INPUT_SIZE, HIDDEN_WIDTH)
-        self.linear2 = torch.nn.Linear(HIDDEN_WIDTH, HIDDEN_WIDTH)
-        self.linear3 = torch.nn.Linear(HIDDEN_WIDTH, OUTPUT_SIZE)
-        self.dropout = torch.nn.Dropout(p=0.2)
+        self.HEIGH = HEIGH
+        self.WIDTH = WIDTH
+        self.conv1 = nn.Conv2d(1, 6, 5)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.fc1 = nn.Linear(16 * ((((HEIGH-4)//2)-4)//2) * ((((WIDTH-4)//2)-4)//2), 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, OUTPUT_SIZE)
+        # self.linear1 = torch.nn.Linear(INPUT_SIZE, HIDDEN_WIDTH)
+        # self.linear2 = torch.nn.Linear(HIDDEN_WIDTH, HIDDEN_WIDTH)
+        # self.linear3 = torch.nn.Linear(HIDDEN_WIDTH, OUTPUT_SIZE)
+        # self.dropout = torch.nn.Dropout(p=0.2)
 
     def forward(self, x):
-        # use dropout() to prevent over learning
-        x = self.dropout(functional.relu(self.linear1(x)))
-        x = self.dropout(functional.relu(self.linear2(x)))
-        # the output dimension shouldn't use dropout()
-        y_pred = functional.softmax(self.linear3(x), dim=1)
-        return y_pred
+        x = self.pool(functional.relu(self.conv1(x)))
+        x = self.pool(functional.relu(self.conv2(x)))
+        x = x.view(-1, 16 * ((((self.HEIGH-4)//2)-4)//2) * ((((self.WIDTH-4)//2)-4)//2))
+        x = functional.relu(self.fc1(x))
+        x = functional.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+        # # use dropout() to prevent over learning
+        # x = self.dropout(functional.relu(self.linear1(x)))
+        # x = self.dropout(functional.relu(self.linear2(x)))
+        # # the output dimension shouldn't use dropout()
+        # y_pred = functional.softmax(self.linear3(x), dim=1)
+        # return y_pred
 
-
-x = torch.zeros((T_NUM * T_SIZE, INPUT_SIZE))
+x = torch.zeros((T_NUM * T_SIZE, PCAP_SIZE, NFFT))
 y = torch.zeros((T_NUM * T_SIZE, OUTPUT_SIZE))
 cnt = 0
 for i in range(T_NUM):
@@ -45,7 +60,7 @@ for i in range(T_NUM):
         temp_y = torch.zeros(T_NUM)
         temp_y[i] = 1
         # read .npy file
-        file = 'data/T' + str(i+1) + '/T' + str(i+1) + '_' + str(j+1) + '.npy'
+        file = 'T' + str(i+1) + '/T' + str(i+1) + '_' + str(j+1) + '.npy'
         temp_x = np.load(file)
         for k in range(PCAP_SIZE):
             temp_x[k] = abs(temp_x[k])
@@ -57,16 +72,15 @@ for i in range(T_NUM):
             CSI_max = temp_x[k].max()
             for p in range(temp_x.shape[1]):
                 temp_x[k][p] = temp_x[k][p] / CSI_max
-        # flatten the 3D data
-        temp_x = temp_x.view((-1, ))
         # concatenates to x and y
         x[cnt] = temp_x
         y[cnt] = temp_y
         cnt += 1
-        # print(i, j)
+        print(i, j)
 
 # Extract test batch
-test_x = torch.zeros((VAL_SIZE, INPUT_SIZE))
+x = torch.reshape(x, (T_SIZE*T_NUM, 1, PCAP_SIZE, NFFT))
+test_x = torch.zeros((VAL_SIZE, PCAP_SIZE, NFFT))
 test_y = torch.zeros((VAL_SIZE, OUTPUT_SIZE))
 for i in range(VAL_SIZE):
     n = random.randint(0, x.shape[0] - 1)
@@ -75,24 +89,25 @@ for i in range(VAL_SIZE):
     test_y[i] = y[n]
     x = torch.cat((x[:n], x[n+1:]))
     y = torch.cat((y[:n], y[n+1:]))
+test_x = torch.reshape(test_x, (VAL_SIZE, 1, PCAP_SIZE, NFFT))
 x.requires_grad = True
 y.requires_grad = True
 # Construct our model by instantiating the class defined above
-model = Net(INPUT_SIZE, HIDDEN_WIDTH, OUTPUT_SIZE)
+model = Net(PCAP_SIZE, NFFT, OUTPUT_SIZE)
 
 # Construct a loss function and an Optimizer. The call to model.parameters()
 # in the SGD constructor will contain the learnable parameters of the two
 # nn.Linear modules which are members of the model.
-criterion = torch.nn.MSELoss(reduction='sum')
-optimizer = torch.optim.Adam(model.parameters(), lr=10)
+criterion = torch.nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.2)
 for t in range(epochs):
+    optimizer.zero_grad()
     # Forward pass: Compute predicted y by passing x to the model
     y_pred = model(x.float())
     # Compute and print loss
-    loss = criterion(y_pred, y)
+    loss = criterion(y_pred, torch.max(y, 1)[1])
     if t % 100 == 99:
         print(t + 1, '针对训练集的损失', loss.item())
     # Zero gradients, perform a backward pass, and update the weights.
-    optimizer.zero_grad()
     loss.backward()
     optimizer.step()
