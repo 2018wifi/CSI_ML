@@ -5,10 +5,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import MultipleLocator
 
-BW = 20
+BW = 20     # 带宽
 NFFT = int(BW * 3.2)
-t_c = 3
-rate = 50  # 发包速率，单位：包/秒
+t_c = 3     # 时间（选取前x秒）
+rate = 50   # 发包速率，单位：包/秒
 
 class Pcap:
     def __init__(self, file_name):
@@ -72,26 +72,26 @@ class Pcap:
             if no == 0:
                 ts_s = ts
 
-            tt = int(time.strftime("%S",time.localtime(ts - ts_s)))
+            tt = int(time.strftime("%S",time.localtime(ts - ts_s))) # 按秒统计，tt为当前秒数
             if tt < t_c:
                 csi_matrix_list.append(csi)
                 ts_list.append(ts - ts_s)
-                ts_raw_list.append(tt)      # 用于检验原始数据使用
+                ts_raw_list.append(tt)      # 用于检验原始数据使用，供以画图
                 if no > 0:
                     t_d.append(-ts_list[no] + ts_list[no - 1])      #负差值，方便后面从大到小排序
             no = no + 1
 
-        ts_lack = t_c * rate - len(ts_list)
+        ts_lack = t_c * rate - len(ts_list)     # 与目标数量相差包数
 
-        td_matrix = np.array(t_d)
-        td_sort = td_matrix.argsort()
+        td_matrix = np.array(t_d)   # 每个包收到时间差值
+        td_sort = td_matrix.argsort()   # 对td_matrix值从大到小排序得到的序号
 
         for i in range(ts_lack):
-            shift = 0
+            shift = 0   # 位移数
             ma_i = [0 for j in range(NFFT)]
 
             for j in range(i):
-                if td_sort[i] > td_sort[j]:
+                if td_sort[i] > td_sort[j]:     # 如果前面有插入新值，后面插入的值的位移量要增加
                     shift = shift + 1
 
             index = td_sort[i] + shift
@@ -111,32 +111,31 @@ class Pcap:
 
     def draw(self):                    # 绘制未插值的pcap数据包接收情况
         ts_matrix = self.ts_raw_matrix
-        # ts_unique = np.unique(ts_matrix)
-        # xnum = len(ts_unique)
-        # no = [i for i in range(xnum + 1)]
-        # x = [(str(no[i]) + '-' + str(no[i + 1])) for i in range(xnum)]
         xnum = ts_matrix[len(ts_matrix) - 1]
-        x = [i + 1 for i in range(xnum + 1)]
+        x = [i + 1 for i in range(xnum + 1)]    # 设置x轴数值
         data_count = []
         data = sorted(ts_matrix)
+
         for i in range(xnum + 1):
             # print(data.count(i))
-            data_count.append(data.count(i))
+            data_count.append(data.count(i))    # 计算每秒有多少个包
+
         plt.ylabel('number of packet')
         plt.xlabel('time')
-        # plt.ylim(0, max(data_count) + 1)
-        # plt.xlim(0, max(x) + 1)
-        width = 0.6
-        x_major_locator = MultipleLocator(2)
+        width = 0.6     # 柱形宽度
+        x_major_locator = MultipleLocator(2)    # 刻度设置
+
         ax = plt.gca()
         ax.xaxis.set_major_locator(x_major_locator)
-        bn = plt.bar(x, data_count, width)  # 初始状态的图
+        bn = plt.bar(x, data_count, width)  # 初始状态柱状图
         plt.tick_params(axis='x', labelsize=5)
         # plt.xticks(rotation=-45)
         ax.set_title(self.pcap_name)
-        for b in bn:
+
+        for b in bn:        # 在柱形上显示对应数字
             ax.text(b.get_x() + b.get_width() / 2, b.get_height(),b.get_height(), fontsize=7,ha = 'center',va='bottom')
         plt.show()
+
 
 if __name__ == '__main__':
     for i in range(1, 71):
@@ -145,4 +144,10 @@ if __name__ == '__main__':
         pcap.parse()
         pcap.save()
         # pcap.draw()
+
+    # pcap_name = 'test'
+    # pcap = Pcap(pcap_name)
+    # pcap.parse()
+    # pcap.save()
+    # pcap.draw()
 
