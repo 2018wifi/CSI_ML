@@ -17,7 +17,7 @@ INPUT_SIZE = PCAP_SIZE * NFFT
 HIDDEN_WIDTH = 50
 VAL_SIZE = 20
 OUTPUT_SIZE = T_NUM
-epochs = 50
+epochs = 500
 
 
 class Net(torch.nn.Module):
@@ -63,19 +63,20 @@ for i in range(T_NUM):
         x[cnt] = temp_x
         y[cnt] = temp_y
         cnt += 1
-        print(i, j)
+        # print(i, j)
 
 # Extract test batch
 test_x = torch.zeros((VAL_SIZE, INPUT_SIZE))
 test_y = torch.zeros((VAL_SIZE, OUTPUT_SIZE))
 for i in range(VAL_SIZE):
     n = random.randint(0, x.shape[0] - 1)
-    print(n)
+    # print(n)
     test_x[i] = x[n]
     test_y[i] = y[n]
     x = torch.cat((x[:n], x[n+1:]))
     y = torch.cat((y[:n], y[n+1:]))
-
+x.requires_grad = True
+y.requires_grad = True
 # Construct our model by instantiating the class defined above
 model = Net(INPUT_SIZE, HIDDEN_WIDTH, OUTPUT_SIZE)
 
@@ -83,7 +84,7 @@ model = Net(INPUT_SIZE, HIDDEN_WIDTH, OUTPUT_SIZE)
 # in the SGD constructor will contain the learnable parameters of the two
 # nn.Linear modules which are members of the model.
 criterion = torch.nn.MSELoss(reduction='sum')
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-1)
+optimizer = torch.optim.Adam(model.parameters(), lr=10)
 for t in range(epochs):
     # Forward pass: Compute predicted y by passing x to the model
     y_pred = model(x.float())
