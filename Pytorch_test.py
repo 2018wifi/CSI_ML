@@ -40,17 +40,18 @@ class Net(torch.nn.Module):
         self.fc1 = nn.Linear(16 * ((((HEIGH-4)//2)-4)//2) * ((((WIDTH-4)//2)-4)//2), 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, OUTPUT_SIZE)
+        self.dropout = torch.nn.Dropout(p=0.2)
         # self.linear1 = torch.nn.Linear(INPUT_SIZE, HIDDEN_WIDTH)
         # self.linear2 = torch.nn.Linear(HIDDEN_WIDTH, HIDDEN_WIDTH)
         # self.linear3 = torch.nn.Linear(HIDDEN_WIDTH, OUTPUT_SIZE)
-        # self.dropout = torch.nn.Dropout(p=0.2)
+
 
     def forward(self, x):
         x = self.pool(functional.relu(self.conv1(x)))
         x = self.pool(functional.relu(self.conv2(x)))
         x = x.view(-1, 16 * ((((self.HEIGH-4)//2)-4)//2) * ((((self.WIDTH-4)//2)-4)//2))
-        x = functional.relu(self.fc1(x))
-        x = functional.relu(self.fc2(x))
+        x = self.dropout(functional.relu(self.fc1(x)))
+        x = self.dropout(functional.relu(self.fc2(x)))
         x = self.fc3(x)
         return x
         # # use dropout() to prevent over learning
@@ -115,7 +116,7 @@ model = Net(PCAP_SIZE, NFFT, OUTPUT_SIZE).to(device)
 # in the SGD constructor will contain the learnable parameters of the two
 # nn.Linear modules which are members of the model.
 criterion = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
 for t in range(epochs):
     optimizer.zero_grad()
     # Forward pass: Compute predicted y by passing x to the model
