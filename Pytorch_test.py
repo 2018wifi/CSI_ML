@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as functional
 import numpy as np
 import random
+import os
 
 # N is batch size; INPUT_SIZE is input dimension;
 # HIDDEN_WIDTH is the width of hidden dimension; OUTPUT_SIZE is output dimension;
@@ -11,14 +12,21 @@ BW = 20  # 带宽
 NFFT = int(BW * 3.2)
 PCAP_SIZE = 150  # 每个pcap包含的CSI数组个数
 T_NUM = 2
-T_SIZE = 20
+T_SIZE = 70
 
 
+LOAD_EXISTING_DATA = True
+SAVE_DATA = True
 INPUT_SIZE = PCAP_SIZE * NFFT
 HIDDEN_WIDTH = 50
-VAL_SIZE = 2
+VAL_SIZE = 20
 OUTPUT_SIZE = T_NUM
-epochs = 500
+epochs = 5000
+
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+else:
+    device = torch.device('cpu')
 
 
 class Net(torch.nn.Module):
@@ -52,36 +60,44 @@ class Net(torch.nn.Module):
         # y_pred = functional.softmax(self.linear3(x), dim=1)
         # return y_pred
 
-x = torch.zeros((T_NUM * T_SIZE, PCAP_SIZE, NFFT))
-y = torch.zeros((T_NUM * T_SIZE, OUTPUT_SIZE))
-cnt = 0
-for i in range(T_NUM):
-    for j in range(T_SIZE):
-        temp_y = torch.zeros(T_NUM)
-        temp_y[i] = 1
-        # read .npy file
-        file = 'T' + str(i+1) + '/T' + str(i+1) + '_' + str(j+1) + '.npy'
-        temp_x = np.load(file)
-        for k in range(PCAP_SIZE):
-            temp_x[k] = abs(temp_x[k])
-        temp_x = torch.from_numpy(temp_x.astype('float64'))[0:PCAP_SIZE]
-        # clean and normalize data
-        for k in [0, 29, 30, 31, 32, 33, 34, 35]:
-            temp_x[:, k] = 0
-        for k in range(temp_x.shape[0]):
-            CSI_max = temp_x[k].max()
-            for p in range(temp_x.shape[1]):
-                temp_x[k][p] = temp_x[k][p] / CSI_max
-        # concatenates to x and y
-        x[cnt] = temp_x
-        y[cnt] = temp_y
-        cnt += 1
-        print(i, j)
 
+print(device)
+if LOAD_EXISTING_DATA:
+    x = torch.load('data_x.pt').to(device)
+    y = torch.load('data_y.pt').to(device)
+else:
+    x = torch.zeros((T_NUM * T_SIZE, PCAP_SIZE, NFFT), device=device)
+    y = torch.zeros((T_NUM * T_SIZE, OUTPUT_SIZE), device=device)
+    cnt = 0
+    for i in range(T_NUM):
+        for j in range(T_SIZE):
+            temp_y = torch.zeros(T_NUM)
+            temp_y[i] = 1
+            # read .npy file
+            file = 'data/T' + str(i+1) + '/T' + str(i+1) + '_' + str(j+1) + '.npy'
+            temp_x = np.load(file)
+            for k in range(PCAP_SIZE):
+                temp_x[k] = abs(temp_x[k])
+            temp_x = torch.from_numpy(temp_x.astype('float64'))[0:PCAP_SIZE]
+            # clean and normalize data
+            for k in [0, 29, 30, 31, 32, 33, 34, 35]:
+                temp_x[:, k] = 0
+            for k in range(temp_x.shape[0]):
+                CSI_max = temp_x[k].max()
+                for p in range(temp_x.shape[1]):
+                    temp_x[k][p] = temp_x[k][p] / CSI_max
+            # concatenates to x and y
+            x[cnt] = temp_x
+            y[cnt] = temp_y
+            cnt += 1
+            print(i, j)
+if SAVE_DATA:
+    torch.save(x, 'data_x.pt')
+    torch.save(y, 'data_y.pt')
 # Extract test batch
 x = torch.reshape(x, (T_SIZE*T_NUM, 1, PCAP_SIZE, NFFT))
-test_x = torch.zeros((VAL_SIZE, PCAP_SIZE, NFFT))
-test_y = torch.zeros((VAL_SIZE, OUTPUT_SIZE))
+test_x = torch.zeros((VAL_SIZE, PCAP_SIZE, NFFT), device=device)
+test_y = torch.zeros((VAL_SIZE, OUTPUT_SIZE), device=device)
 for i in range(VAL_SIZE):
     n = random.randint(0, x.shape[0] - 1)
     # print(n)
@@ -93,21 +109,34 @@ test_x = torch.reshape(test_x, (VAL_SIZE, 1, PCAP_SIZE, NFFT))
 x.requires_grad = True
 y.requires_grad = True
 # Construct our model by instantiating the class defined above
-model = Net(PCAP_SIZE, NFFT, OUTPUT_SIZE)
+model = Net(PCAP_SIZE, NFFT, OUTPUT_SIZE).to(device)
 
 # Construct a loss function and an Optimizer. The call to model.parameters()
 # in the SGD constructor will contain the learnable parameters of the two
 # nn.Linear modules which are members of the model.
 criterion = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.2)
+optimizer = torch.optim.Adam(model.parameters(), lr=1)
 for t in range(epochs):
     optimizer.zero_grad()
     # Forward pass: Compute predicted y by passing x to the model
-    y_pred = model(x.float())
+    y_pred = model(x)
     # Compute and print loss
     loss = criterion(y_pred, torch.max(y, 1)[1])
-    if t % 100 == 99:
-        print(t + 1, '针对训练集的损失', loss.item())
+    if t % 10 == 9:
+        os.system('cls')
+        print('epoch=', t + 1, '\n针对训练集的损失', loss.item())
+        _, predicted = torch.max(y_pred.data, 1)
+        _, expected = torch.max(y.data, 1)
+        correct = (predicted == expected).sum().item()
+        print('针对训练集的准确率', (correct / (T_NUM*T_SIZE-VAL_SIZE)) * 100, '%')
+        with torch.no_grad():
+            test_y_pred = model(test_x.float())
+            test_loss = criterion(test_y_pred, torch.max(test_y, 1)[1])
+            print('针对测试集的损失', test_loss.item())
+            _, predicted = torch.max(test_y_pred.data, 1)
+            _, expected = torch.max(test_y.data, 1)
+            correct = (predicted == expected).sum().item()
+            print('针对测试集的准确率', (correct/VAL_SIZE)*100, '%')
     # Zero gradients, perform a backward pass, and update the weights.
     loss.backward()
     optimizer.step()
