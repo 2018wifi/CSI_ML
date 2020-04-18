@@ -4,6 +4,7 @@ import torch.nn.functional as functional
 import numpy as np
 import random
 import os
+import torch.optim.lr_scheduler as lr_scheduler
 
 # N is batch size; INPUT_SIZE is input dimension;
 # HIDDEN_WIDTH is the width of hidden dimension; OUTPUT_SIZE is output dimension;
@@ -22,6 +23,8 @@ HIDDEN_WIDTH = 50
 VAL_SIZE = 20
 OUTPUT_SIZE = T_NUM
 epochs = 5000
+learning_rate = 1e-2
+dynamically_adjust = False
 
 if torch.cuda.is_available():
     device = torch.device('cuda')
@@ -116,7 +119,8 @@ model = Net(PCAP_SIZE, NFFT, OUTPUT_SIZE).to(device)
 # in the SGD constructor will contain the learnable parameters of the two
 # nn.Linear modules which are members of the model.
 criterion = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 for t in range(epochs):
     optimizer.zero_grad()
     # Forward pass: Compute predicted y by passing x to the model
@@ -125,6 +129,7 @@ for t in range(epochs):
     loss = criterion(y_pred, torch.max(y, 1)[1])
     if t % 10 == 9:
         os.system('cls')
+        print('\nlearning rate = ', optimizer.state_dict()['param_groups'][0]['lr'])
         print('epoch=', t + 1, '\n针对训练集的损失', loss.item())
         _, predicted = torch.max(y_pred.data, 1)
         _, expected = torch.max(y.data, 1)
@@ -138,6 +143,17 @@ for t in range(epochs):
             _, expected = torch.max(test_y.data, 1)
             correct = (predicted == expected).sum().item()
             print('针对测试集的准确率', (correct/VAL_SIZE)*100, '%')
+            if correct/VAL_SIZE > 0.95:
+                torch.save(model, 'model.pkl')
+                print('准确率达到阈值， 模型已保存')
+                exit()
+
     # Zero gradients, perform a backward pass, and update the weights.
     loss.backward()
     optimizer.step()
+    if dynamically_adjust:
+        with torch.no_grad():
+            test_y_pred = model(test_x.float())
+            test_loss = criterion(test_y_pred, torch.max(test_y, 1)[1])
+        scheduler.step(test_loss)
+
