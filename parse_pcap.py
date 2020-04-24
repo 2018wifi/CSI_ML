@@ -139,7 +139,7 @@ class Pcap:
 
 if __name__ == '__main__':
     for i in range(1, 71):
-        pcap_name = "T5/T5_" + str(i)
+        pcap_name = "T6/T6_" + str(i)
         pcap = Pcap(pcap_name)
         pcap.parse()
         pcap.save()
