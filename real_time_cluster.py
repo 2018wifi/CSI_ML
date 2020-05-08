@@ -7,6 +7,7 @@ import numpy as np
 import datetime
 import math
 from parameters import *
+from CNN_pytorch import device, Net
 
 BW = 20
 NFFT = int(BW * 3.2)
@@ -37,6 +38,8 @@ def tcpip():
             csi = read_csi(data)
             data[i] = csi
         data = torch.from_numpy(data.astype('float64'))
+        data.device = device
+        data = torch.reshape(data, (1, 1, PCAP_SIZE, NFFT))
         cluster.put_data(data)
 
 
@@ -79,10 +82,10 @@ def read_csi(data):     # 提取CSI信息，并转换成矩阵
 
 
 class Cluster:
-    def __init__(self, model_path, num=2):
-        self.pool = []
-        self.queue = deque()
-        self.model = torch.load(model_path)
+    def __init__(self, model_path):
+        self.pool = deque()
+        self.model = Net(PCAP_SIZE, NFFT, OUTPUT_SIZE).to(device)
+        self.model.load_state_dict(torch.load(model_path))
         self.lock = threading.Lock()
 
     # You can use the "put_data" method anytime, anywhere
@@ -97,13 +100,18 @@ class Cluster:
 
     def cluster(self):
         while True:
-            try:
+            if len(self.pool) > 0:
                 with self.lock:
                     data = self.pool.popleft()
                 y = self.model(data)
-                print(y)
-            except:
-                pass
+                print(y.argmax())
+            # if len(self.pool) >= 1:
+            #     data = self.pool.popleft()
+            #     y = self.model(data)
+            #     print(y.argmax())
+            # else:
+            #     print(len(self.pool))
+
 
     def run(self):
         t = threading.Thread(target=self.cluster)
