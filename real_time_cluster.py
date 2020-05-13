@@ -105,13 +105,6 @@ class Cluster:
                     data = self.pool.popleft()
                 y = self.model(data)
                 print(y.argmax())
-            # if len(self.pool) >= 1:
-            #     data = self.pool.popleft()
-            #     y = self.model(data)
-            #     print(y.argmax())
-            # else:
-            #     print(len(self.pool))
-
 
     def run(self):
         t = threading.Thread(target=self.cluster)
