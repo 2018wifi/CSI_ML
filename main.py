@@ -6,7 +6,7 @@ BW = 20  # 带宽
 NFFT = int(BW * 3.2)
 GESTURE_NUM = 3  # 手势数
 TRAIN_SIZE = 210  # 训练集大小
-PCAP_SIZE = 150  # 每个pcap包含的CSI数组个数
+PCAP_SIZE = 100  # 每个pcap包含的CSI数组个数
 
 train_data = np.zeros((TRAIN_SIZE, PCAP_SIZE, NFFT))
 train_result = np.zeros(TRAIN_SIZE)
