@@ -7,11 +7,13 @@ from matplotlib.pyplot import MultipleLocator
 
 BW = 20     # 带宽
 NFFT = int(BW * 3.2)
-t_c = 3     # 时间（选取前x秒）
+t_c = 1     # 时间（选取前x秒）
 rate = 50   # 发包速率，单位：包/秒
 
 class Pcap:
-    def __init__(self, file_name):
+    def __init__(self, rasp_num, point_num, file_name):
+        self.rasp_num = rasp_num
+        self.point_num = point_num
         self.pcap_name = file_name
 
     def __parse_udp(self, buffer):      # 解析udp包的二进制流
@@ -47,7 +49,7 @@ class Pcap:
         return csi
 
     def parse(self):                                            # 提取CSI信息和时间戳信息，并转换成矩阵
-        f = open("data_raw/" + self.pcap_name + ".pcap", 'rb')
+        f = open("data_pcap/data" + str(self.rasp_num) + "/" + "T" + str(self.point_num) + "/" + self.pcap_name + ".pcap", 'rb')
         pcap = dpkt.pcap.Reader(f)
 
         csi_matrix_list = []
@@ -105,9 +107,10 @@ class Pcap:
         f.close()
 
     def save(self):                                     # 写入npy文件
-        with open("data/" + self.pcap_name + ".npy", 'wb'):
+        path = "data_npy/data" + str(self.rasp_num) + "/" + "T" + str(self.point_num) + "/" + self.pcap_name + ".npy"
+        with open(path, 'wb'):
             pass
-        np.save("data/" + self.pcap_name + ".npy", self.csi_matrix)
+        np.save(path, self.csi_matrix)
 
     def draw(self):                    # 绘制未插值的pcap数据包接收情况
         ts_matrix = self.ts_raw_matrix
@@ -138,16 +141,26 @@ class Pcap:
 
 
 if __name__ == '__main__':
-    for i in range(1, 71):
-        pcap_name = "T6/T6_" + str(i)
-        pcap = Pcap(pcap_name)
-        pcap.parse()
-        pcap.save()
-        # pcap.draw()
+    for i in range(1, 4):           # 三个点
+        for j in range(1, 51):      # 50个包
+            pcap_name = "T" + str(i) + "_" + str(j)
+            pcap1 = Pcap(1, i, pcap_name)
+            pcap2 = Pcap(2, i, pcap_name)
+            # pcap3 = Pcap(3, j, pcap_name)
+            pcap1.parse()
+            pcap2.parse()
+            # pcap3.parse()
 
-    # pcap_name = 'test'
-    # pcap = Pcap(pcap_name)
-    # pcap.parse()
-    # pcap.save()
-    # pcap.draw()
+            con_matrix = np.zeros((100, 64), dtype=np.complex)
+            con_matrix[0:50] = pcap1.csi_matrix[0:50]
+            con_matrix[50:100] = pcap2.csi_matrix[0:50]
+            # con_matrix[100:150] = pcap3.csi_matrix
+            with open("data/T" + str(i) + "/T" + str(i) + "_" + str(j) + ".npy",
+                      'wb'):
+                pass
+            np.save("data/T" + str(i) + "/T" + str(i) + "_" + str(j) + ".npy", con_matrix)
+
+            pcap1.save()
+            pcap2.save()
+            # pcap3.save()
 
