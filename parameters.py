@@ -1,14 +1,14 @@
 # Public
 BW = 20  # 带宽
 NFFT = int(BW * 3.2)
-PCAP_SIZE = 150  # 每个pcap包含的CSI数组个数
-T_NUM = 6
-T_SIZE = 70
+PCAP_SIZE = 100  # 每个pcap包含的CSI数组个数
+T_NUM = 3
+T_SIZE = 50
 
 VAL_SIZE = 50
 
 # CNN_pytorch
-LOAD_EXISTING_DATA = True
+LOAD_EXISTING_DATA = False
 SAVE_DATA = True
 INPUT_SIZE = PCAP_SIZE * NFFT
 HIDDEN_WIDTH = 50
