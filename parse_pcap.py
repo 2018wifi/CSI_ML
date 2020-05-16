@@ -142,7 +142,7 @@ class Pcap:
 
 if __name__ == '__main__':
     for i in range(1, 4):           # 三个点
-        for j in range(1, 51):      # 50个包
+        for j in range(1, 101):      # 50个包
             pcap_name = "T" + str(i) + "_" + str(j)
             pcap1 = Pcap(1, i, pcap_name)
             pcap2 = Pcap(2, i, pcap_name)
